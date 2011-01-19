@@ -43,8 +43,7 @@ class Storage(SingletonPlugin):
 def fix_stupid_pylons_encoding(data):
     if data.startswith("%") or data.startswith("+"):
         data = urllib.unquote_plus(data)
-    if data.endswith("="):
-        data = data[:-1]
+    data = data.split("=")[0]
     return data
 
 class StorageController(BaseController):
@@ -58,7 +57,10 @@ class StorageController(BaseController):
 
         try:
             data = fix_stupid_pylons_encoding(request.body)
-            metadata = loads(data)
+            if data:
+                metadata = loads(data)
+            else:
+                metadata = {}
         except:
             abort(400)
             
