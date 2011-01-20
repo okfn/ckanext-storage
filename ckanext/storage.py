@@ -76,22 +76,25 @@ class StorageController(BaseController):
         k = self.ofs._get_key(b, label)
         if k is None:
             k = b.new_key(label)
-            self.ofs._update_key_metadata(k, { '_creation_time': str(datetime.utcnow()) })
+            metadata = metadata.copy()
+            metadata["_creation_time"] = str(datetime.utcnow())
+            self.ofs._update_key_metadata(k, metadata)
             k.set_contents_from_file(StringIO(''))
-        k.make_public()
-        k.close()
-
-        if request.method == "PUT":
+        elif request.method == "PUT":
             old = self.ofs.get_metadata(bucket, label)
             to_delete = []
-            for k in old.keys():
-                if k not in metadata:
-                    to_delete.append(k)
+            for ok in old.keys():
+                if ok not in metadata:
+                    to_delete.append(ok)
             if to_delete:
                 self.ofs.del_metadata_keys(bucket, label, to_delete)
+            self.ofs.update_metadata(bucket, label, metadata)
+        else:
+            self.ofs.update_metadata(bucket, label, metadata)            
 
-        self.ofs.update_metadata(bucket, label, metadata)
-
+        k.make_public()
+        k.close()
+        
         return self.get_metadata(bucket, label)
     
     def get_metadata(self, bucket, label):
