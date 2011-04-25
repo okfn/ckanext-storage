@@ -24,8 +24,6 @@ class Storage(SingletonPlugin):
             if not k.startswith('ofs.') or k == 'ofs.impl':
                 continue
             kw[k[4:]] = v
-        from ckanext import storage
-        storage.ofs = get_impl(config.get('ofs.impl', 'google'))(**kw)
 
     def before_map(self, route_map):
         c = "ckanext.storage:StorageController"
@@ -53,8 +51,8 @@ def fix_stupid_pylons_encoding(data):
 class StorageController(BaseController):
     @property
     def ofs(self):
-        from ckanext import storage
-        return storage.ofs
+        ofs = get_impl(config.get('ofs.impl', 'google'))(**kw)
+        return ofs
 
     def set_metadata(self, bucket, label):
         if not label.startswith("/"): label = "/" + label
