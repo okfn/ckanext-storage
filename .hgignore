@@ -1,0 +1,7 @@
+syntax: glob
+*.pyc
+*.swp
+*.egg-info/*
+sandbox/*
+.DS_Store
+
