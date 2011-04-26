@@ -15,27 +15,16 @@ from ckan.plugins import implements, IConfigurable, IRoutes, SingletonPlugin
 from ckan.lib.base import BaseController
 
 class Storage(SingletonPlugin):
-    implements(IConfigurable)
-    implements(IRoutes)
+    implements(IRoutes, inherit=True)
     
-    def configure(self, config):
-        kw = {}
-        for k,v in config.items():
-            if not k.startswith('ofs.') or k == 'ofs.impl':
-                continue
-            kw[k[4:]] = v
-
-    def before_map(self, route_map):
+    def after_map(self, route_map):
         c = "ckanext.storage:StorageController"
         route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="set_metadata",
                           conditions={"method": ["PUT", "POST"]})
         route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})
         route_map.connect("/api/storage/auth/:bucket/:label", controller=c, action="get_headers",
-                          conditions={"method": ["POST"]})
-        return route_map
-    
-    def after_map(self, route_map):
+                          conditions={"method": ["POST", "GET"]})
         return route_map
 
 import re
@@ -51,6 +40,13 @@ def fix_stupid_pylons_encoding(data):
 class StorageController(BaseController):
     @property
     def ofs(self):
+        from pylons import config
+        kw = {}
+        for k,v in config.items():
+            if not k.startswith('ofs.') or k == 'ofs.impl':
+                continue
+            kw[k[4:]] = v
+
         ofs = get_impl(config.get('ofs.impl', 'google'))(**kw)
         return ofs
 
