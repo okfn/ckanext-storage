@@ -20,13 +20,14 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        "boto",
+        # google storage support only appeared in 2.0
+        # note that lucid packages 1.9
+        "boto>=2.0b1",
         "ofs",
     ],
     entry_points=\
     """
     [ckan.plugins]
-    # Add plugins here, eg
     storage=ckanext.storage:Storage
     """,
 )
