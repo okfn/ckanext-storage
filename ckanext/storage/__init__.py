@@ -19,11 +19,12 @@ class Storage(SingletonPlugin):
     
     def after_map(self, route_map):
         c = "ckanext.storage:StorageController"
+        route_map.connect('storage', "/api/storage", controller=c, action="index")
         route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="set_metadata",
                           conditions={"method": ["PUT", "POST"]})
         route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})
-        route_map.connect("/api/storage/auth/:bucket/:label", controller=c, action="get_headers",
+        route_map.connect('storage_auth', "/api/storage/auth/:bucket/:label", controller=c, action="get_headers",
                           conditions={"method": ["POST", "GET"]})
         return route_map
 
@@ -37,6 +38,7 @@ def fix_stupid_pylons_encoding(data):
         data = m.groups()[0]
     return data
 
+from ckan.lib.jsonp import jsonpify
 class StorageController(BaseController):
     @property
     def ofs(self):
@@ -49,6 +51,20 @@ class StorageController(BaseController):
 
         ofs = get_impl(config.get('ofs.impl', 'google'))(**kw)
         return ofs
+    
+    @jsonpify
+    def index(self):
+        info = {
+            'metadata/{bucket}/{label}': {
+                'description': 'Get or set metadata for this item in storage',
+                'methods': ['GET', 'POST']
+                },
+            'auth/{bucket}/{label}': {
+                'description': 'Get authorization key valid for 15m',
+                'methods': ['POST', 'PUT']
+                }
+            }
+        return info
 
     def set_metadata(self, bucket, label):
         if not label.startswith("/"): label = "/" + label
