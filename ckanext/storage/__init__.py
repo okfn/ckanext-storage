@@ -8,11 +8,17 @@ except ImportError:
     from simplejson import dumps, loads
 from datetime import datetime
 import urllib
+from logging import getLogger
+
 from ofs import get_impl
 from pylons import request, response
 from pylons.controllers.util import abort, redirect_to
+
 from ckan.plugins import implements, IConfigurable, IRoutes, SingletonPlugin
 from ckan.lib.base import BaseController
+
+log = getLogger(__name__)
+
 
 class Storage(SingletonPlugin):
     implements(IRoutes, inherit=True)
@@ -20,11 +26,15 @@ class Storage(SingletonPlugin):
     def after_map(self, route_map):
         c = "ckanext.storage:StorageController"
         route_map.connect('storage', "/api/storage", controller=c, action="index")
-        route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="set_metadata",
+        route_map.connect("/api/storage/metadata/{bucket}/{label}", controller=c, action="set_metadata",
                           conditions={"method": ["PUT", "POST"]})
-        route_map.connect("/api/storage/metadata/:bucket/:label", controller=c, action="get_metadata",
+        route_map.connect("/api/storage/metadata/{bucket}/{label}", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})
-        route_map.connect('storage_auth', "/api/storage/auth/:bucket/:label", controller=c, action="get_headers",
+        route_map.connect('storage_auth_headers', "/api/storage/auth/{bucket}/{label:.*}", controller=c, action="get_headers",
+                          conditions={"method": ["POST", "GET"]})
+        route_map.connect('storage_auth_form',
+                "/api/storage/auth_form/{bucket}/{label:.*}", controller=c,
+                action="auth_form",
                           conditions={"method": ["POST", "GET"]})
         return route_map
 
@@ -116,21 +126,48 @@ class StorageController(BaseController):
         metadata["_location"] = url
         return dumps(metadata)
 
+    @jsonpify
     def get_headers(self, bucket, label):
-        if not label.startswith("/"): label = "/" + label
+        if request.POST:
+            try:
+                data = fix_stupid_pylons_encoding(request.body)
+                headers = loads(data)
+            except Exception, e:
+                from traceback import print_exc
+                msg = StringIO()
+                print_exc(msg)
+                log.error(msg.seek(0).read())
+                abort(400)
+        else:
+            headers = dict(request.params)
 
-        try:
-            data = fix_stupid_pylons_encoding(request.body)
-            headers = loads(data)
-        except Exception, e:
-            from traceback import print_exc
-            print_exc()
-            abort(400)
-
-        if not self.ofs.exists(bucket, label):
-            abort(404)
+        # TODO: authorization
             
-        if not headers:
-            headers = {}
-        self.ofs.conn.add_aws_auth_header(headers, 'PUT', "/" + bucket + label)
-        return dumps((self.ofs.conn.server_name(), headers))
+        # does not existing boto 
+        # self.ofs.conn.add_aws_auth_header(headers, 'PUT', "/" + bucket + label)
+        # return (self.ofs.conn.server_name(), headers)
+        return []
+
+    @jsonpify
+    def auth_form(self, bucket, label):
+        if request.POST:
+            try:
+                data = fix_stupid_pylons_encoding(request.body)
+                headers = loads(data)
+            except Exception, e:
+                from traceback import print_exc
+                msg = StringIO()
+                print_exc(msg)
+                log.error(msg.seek(0).read())
+                abort(400)
+        else:
+            headers = dict(request.params)
+
+        # TODO: authorization
+            
+        return self.ofs.conn.build_post_form_args(
+            bucket,
+            label,
+            **headers
+            )
+
