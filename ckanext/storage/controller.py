@@ -1,4 +1,11 @@
 import re
+from datetime import datetime
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+import urllib
+from logging import getLogger
 
 from ofs import get_impl
 from pylons import request, response
@@ -6,6 +13,8 @@ from pylons.controllers.util import abort, redirect_to
 
 from ckan.lib.base import BaseController
 from ckan.lib.jsonp import jsonpify
+
+log = getLogger(__name__)
 
 _eq_re = re.compile(r"^(.*)(=[0-9]*)$")
 def fix_stupid_pylons_encoding(data):
