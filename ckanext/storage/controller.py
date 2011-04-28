@@ -37,7 +37,7 @@ def get_ofs():
     ofs = get_impl(storage_backend)(**kw)
     return ofs
 
-class StorageController(BaseController):
+class StorageAPIController(BaseController):
     ofs = get_ofs()
     
     @jsonpify
@@ -238,7 +238,7 @@ def setup_permissions():
 setup_permissions()
 
 
-class UploadController(BaseController):
+class StorageController(BaseController):
     '''Upload to storage service (at the moment Google Developer storage.
 
     Required config:
@@ -263,7 +263,7 @@ class UploadController(BaseController):
         content_length_range = int(
                 config.get('ckanext.upload.max_content_length',
                     50000000))
-        success_action_redirect = h.url_for('upload_success', qualified=True,
+        success_action_redirect = h.url_for('storage_upload_success', qualified=True,
                 bucket=bucket, label=label)
         acl = 'public-read'
         c.data = self.ofs.conn.build_post_form_args(

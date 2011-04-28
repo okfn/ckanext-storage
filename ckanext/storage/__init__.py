@@ -11,32 +11,29 @@ class Storage(SingletonPlugin):
     implements(IConfigurer, inherit=True)
 
     def after_map(self, route_map):
-        c = "ckanext.storage.controller:StorageController"
-        route_map.connect('storage', "/api/storage", controller=c, action="index")
+        c = "ckanext.storage.controller:StorageAPIController"
+        route_map.connect('storage_api', "/api/storage", controller=c, action="index")
         route_map.connect("/api/storage/metadata/{bucket}/{label}", controller=c, action="set_metadata",
                           conditions={"method": ["PUT", "POST"]})
         route_map.connect("/api/storage/metadata/{bucket}/{label}", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})
-        route_map.connect('storage_auth_request',
+        route_map.connect('storage_api_auth_request',
                 "/api/storage/auth/request/{bucket}/{label:.*}",
                 controller=c,
                 action="auth_request"
                 )
-        route_map.connect('storage_auth_form',
+        route_map.connect('storage_api_auth_form',
                 "/api/storage/auth/form/{bucket}/{label:.*}",
                 controller=c,
                 action="auth_form"
                 )
         # upload page
-        route_map.connect('upload', '/upload',
-            controller='ckanext.storage.controller:UploadController',
+        route_map.connect('storage_upload', '/storage/upload',
+            controller='ckanext.storage.controller:StorageController',
             action='index')
-        route_map.connect('upload_success', '/upload/success',
-            controller='ckanext.storage.controller:UploadController',
+        route_map.connect('storage_upload_success', '/storage/upload/success',
+            controller='ckanext.storage.controller:StorageController',
             action='success')
-        route_map.connect('upload_error', '/upload/error',
-            controller='ckanext.storage.controller:UploadController',
-            action='error')
         return route_map
 
     def update_config(self, config):

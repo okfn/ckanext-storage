@@ -7,7 +7,7 @@ from ckan.tests import conf_dir, url_for, CreateTestData
 import ckan.model as model
 
 
-class TestStatsPlugin:
+class TestStorageController:
     @classmethod
     def setup_class(cls):
         config = appconfig('config:test.ini', relative_to=conf_dir)
