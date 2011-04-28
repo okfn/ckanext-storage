@@ -1,6 +1,10 @@
-This adds some bits to the CKAN API for dealing with storage. It uses OFS to
-talk to the backing storage so can support anything that OFS supports including
-local filesytem, S3, Google Storage etc.
+This extension adds:
+
+  * Some new methods to the CKAN API for dealing with storage
+  * An /upload page to web interface for doing file uploads
+  
+It uses OFS to talk to the backing storage so can support anything that OFS
+supports including local filesytem, S3, Google Storage etc.
 
 In your config you need something like::
 
@@ -14,6 +18,8 @@ Then there will some new API methods::
 
      /api/storage/metadata/<bucket>/<label>
      /api/storage/auth/{type}/<bucket>/<label>
+
+And a new upload page at /upload.
 
 Metadata API
 ------------
