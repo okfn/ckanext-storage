@@ -10,6 +10,7 @@ from logging import getLogger
 from ofs import get_impl
 from pylons import request, response
 from pylons.controllers.util import abort, redirect_to
+from pylons import config
 
 from ckan.lib.base import BaseController
 from ckan.lib.jsonp import jsonpify
@@ -25,18 +26,19 @@ def fix_stupid_pylons_encoding(data):
         data = m.groups()[0]
     return data
 
-class StorageController(BaseController):
-    @property
-    def ofs(self):
-        from pylons import config
-        kw = {}
-        for k,v in config.items():
-            if not k.startswith('ofs.') or k == 'ofs.impl':
-                continue
-            kw[k[4:]] = v
+storage_backend = config.get('ofs.impl')
 
-        ofs = get_impl(config.get('ofs.impl', 'google'))(**kw)
-        return ofs
+def get_ofs():
+    kw = {}
+    for k,v in config.items():
+        if not k.startswith('ofs.') or k == 'ofs.impl':
+            continue
+        kw[k[4:]] = v
+    ofs = get_impl(storage_backend)(**kw)
+    return ofs
+
+class StorageController(BaseController):
+    ofs = get_ofs()
     
     @jsonpify
     def index(self):
@@ -191,6 +193,8 @@ class StorageController(BaseController):
             headers = dict(request.params)
 
         self._authorize('POST', bucket, label)
+        if 'max_content_length' in headers:
+            headers['max_content_length'] = int(headers['max_content_length'])
             
         return self.ofs.conn.build_post_form_args(
             bucket,
@@ -198,7 +202,6 @@ class StorageController(BaseController):
             **headers
             )
 
-import datetime
 import base64
 import hashlib
 import hmac
@@ -247,56 +250,39 @@ class UploadController(BaseController):
     * ckanext.upload.max_content_length [optional]: maximum content size for
       uploads (defaults to 50Mb)
     '''
+    ofs = get_ofs()
+
     def index(self):
         is_authorized = authz.Authorizer.am_authorized(c, UPLOAD_ACTION, model.System()) 
         if not is_authorized:
             h.flash_error('Not authorized to upload files.')
             abort(401)
 
-
-        c.bucket = config.get('ofs.gs_bucket', 'ckan')
-        c.post_url = 'https://commondatastorage.googleapis.com/' + c.bucket
-
-        c.google_access_key_id = config.get('ofs.gs_access_key_id', '')
-        secret_key = config.get('ofs.gs_secret_access_key', '')
-
-        # generate a random filename
-        filepath = request.params.get('filepath', str(uuid.uuid4()))
-        c.key = filepath
-
-        # default to 50Mb
+        bucket = config.get('ckanext.storage.bucket_prefix')
+        label = request.params.get('filepath', str(uuid.uuid4())) #  + '/$filename'
         content_length_range = int(
                 config.get('ckanext.upload.max_content_length',
                     50000000))
-        # expire in 10m
-        expiration = datetime.datetime.utcnow() + datetime.timedelta(0,600,0)
-        expiration = expiration.replace(microsecond=0)
-        expiration = expiration.isoformat()
-        if not expiration.endswith('Z'):
-            expiration += 'Z'
-
-        c.acl = 'public-read'
-        fileurl = c.post_url + '/' + c.key
-        c.success_action_redirect = h.url_for('upload_success', qualified=True,
-                fileurl=fileurl)
-        c.success_action_status = '201'
-        c.failure_action_redirect = h.url_for('upload_error', qualified=True)
-        policy = {
-            'expiration': expiration,
-            'conditions': [
-                {'key': c.key},
-                {"acl": c.acl},
-                {"success_action_redirect": c.success_action_redirect },
-                # work around google bug
-                # https://groups.google.com/group/gs-discussion/browse_thread/thread/9406dcdea19752b6?pli=1
-                ["starts-with", "$failure_action_redirect",
-                    c.failure_action_redirect ],
-                ['content-length-range', 0, content_length_range]
-            ]
-        }
-        c.policy = base64.b64encode(json.dumps(policy))
-        signature = hmac.new(secret_key, c.policy, digestmod=hashlib.sha1)
-        c.signature = base64.b64encode(signature.digest())
+        success_action_redirect = h.url_for('upload_success', qualified=True,
+                bucket=bucket, label=label)
+        acl = 'public-read'
+        c.data = self.ofs.conn.build_post_form_args(
+            bucket,
+            label,
+            expires_in=600,
+            max_content_length=content_length_range,
+            success_action_redirect=success_action_redirect,
+            acl=acl
+            )
+        # fix up some broken stuff from boto
+        # e.g. should not have content-length-range in list of fields!
+        for idx,field in enumerate(c.data['fields']):
+            if storage_backend == 'google':
+                if field['name'] == 'AWSAccessKeyId':
+                    field['name'] = 'GoogleAccessId'
+            if field['name'] == 'content-length-range':
+                del c.data['fields'][idx]
+        c.data_json = json.dumps(c.data, indent=2)
         return render('ckanext/storage/index.html')
 
     def success(self):
@@ -304,7 +290,4 @@ class UploadController(BaseController):
         c.file_url = request.params.get('fileurl', '')
         c.upload_url = h.url_for('upload')
         return render('ckanext/storage/success.html')
-
-    def fail(self):
-        return 'Upload failed. Please go back and try again'
 

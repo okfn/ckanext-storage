@@ -6,6 +6,9 @@
   <py:def function="page_title">Upload</py:def>
 
   <py:def function="optional_head">
+    <script type="text/javascript">
+      var form_data = ${c.data_json};
+    </script>
   </py:def>
 
   <div py:match="content">
@@ -14,20 +17,16 @@
     <p>This upload form is valid for 10m. Please reload the page after 10m to
     start again.</p>
 
-    <form action="${c.post_url}"
+    <form action="${c.data['action']}"
       enctype="multipart/form-data"
       method="POST">
 
-      <input type="hidden" name="key" value="${c.key}" />
-      <input type="hidden" name="policy" value="${c.policy}" />
-      <input type="hidden" name="signature" value="${c.signature}" />
-      <input type="hidden" name="GoogleAccessId" value="${c.google_access_key_id}" />
-      <input type="hidden" name="acl" value="${c.acl}" />
-      <input type="hidden" name="success_action_redirect"
-        value="${c.success_action_redirect}" />
-      <input type="hidden" name="failure_action_redirect"
-        value="${c.failure_action_redirect}" />
-
+      <py:for each="field in c.data['fields']">
+      <input type="hidden" name="${field['name']}" value="${field['value']}" />
+      </py:for>
+      <!--
+      <input type="text" name="filename" value="" />
+      -->
       <fieldset>
         <dl>
           <dt>
