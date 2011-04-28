@@ -36,9 +36,13 @@ class StorageController(BaseController):
                 'description': 'Get or set metadata for this item in storage',
                 'methods': ['GET', 'POST']
                 },
-            'auth/{bucket}/{label}': {
+            'auth/request/{bucket}/{label}': {
                 'description': 'Get authorization key valid for 15m',
-                'methods': ['POST', 'PUT']
+                'methods': ['GET', 'POST']
+                },
+            'auth/form/{bucket}/{label}': {
+                'description': 'Get authorization key valid for 15m',
+                'methods': ['GET', 'POST']
                 }
             }
         return info
@@ -84,6 +88,7 @@ class StorageController(BaseController):
         
         return self.get_metadata(bucket, label)
     
+    @jsonpify
     def get_metadata(self, bucket, label):
         if not label.startswith("/"): label = "/" + label
         if not self.ofs.exists(bucket, label):
@@ -91,10 +96,35 @@ class StorageController(BaseController):
         metadata = self.ofs.get_metadata(bucket, label)
         url = "https://%s/%s%s" % (self.ofs.conn.server_name(), bucket, label)
         metadata["_location"] = url
-        return dumps(metadata)
+        return metadata
+
+    def _authorize(self, method, bucket, key):
+        # TODO: implement
+        pass
 
     @jsonpify
-    def get_headers(self, bucket, label):
+    def auth_request(self, bucket, label):
+        '''Provide authentication information for a request so a client can
+        interact with backend storage directly.
+
+        :param bucket: bucket name.
+        :param label: label.
+        :param kwargs: sent either via query string for GET or json-encoded
+            dict for POST). Interpreted as http headers for request plus an
+            (optional) method parameter (being the HTTP method).
+
+            Examples of headers are:
+
+                Content-Type
+                Content-Encoding (optional)
+                Content-Length
+                Content-MD5
+                Expect (should be '100-Continue')
+
+        :return: is a json hash containing various attributes including a
+        headers dictionary containing an Authorization field which is good for
+        15m.
+        '''
         if request.POST:
             try:
                 data = fix_stupid_pylons_encoding(request.body)
@@ -107,16 +137,37 @@ class StorageController(BaseController):
                 abort(400)
         else:
             headers = dict(request.params)
+        if 'method' in headers:
+            method = headers['method']
+            del headers['method']
+        else:
+            method = 'POST'
 
-        # TODO: authorization
+        self._authorize(method, bucket, label)
             
-        # does not existing boto 
-        # self.ofs.conn.add_aws_auth_header(headers, 'PUT', "/" + bucket + label)
-        # return (self.ofs.conn.server_name(), headers)
-        return []
+        http_request = self.ofs.authenticate_request(method, bucket, label,
+                headers)
+        return {
+            'host': http_request.host,
+            'method': http_request.method,
+            'path': http_request.path,
+            'headers': http_request.headers
+            }
 
     @jsonpify
     def auth_form(self, bucket, label):
+        '''Provide fields for a form upload to storage including
+        authentication.
+
+        :param bucket: bucket name.
+        :param label: label.
+        :param kwargs: sent either via query string for GET or json-encoded
+            dict for POST. Possible key values are as for arguments to this
+            underlying method:
+            http://boto.cloudhackers.com/ref/s3.html?highlight=s3#boto.s3.connection.S3Connection.build_post_form_args
+
+        :return: json-encoded dictionary with action parameter and fields list.
+        '''
         if request.POST:
             try:
                 data = fix_stupid_pylons_encoding(request.body)
@@ -130,12 +181,11 @@ class StorageController(BaseController):
         else:
             headers = dict(request.params)
 
-        # TODO: authorization
+        self._authorize('POST', bucket, label)
             
         return self.ofs.conn.build_post_form_args(
             bucket,
             label,
             **headers
             )
-
 

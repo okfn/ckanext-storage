@@ -23,7 +23,7 @@ setup(
         # google storage support only appeared in 2.0
         # note that lucid packages 1.9
         "boto>=2.0b1",
-        "ofs",
+        "ofs>=0.4",
     ],
     entry_points=\
     """

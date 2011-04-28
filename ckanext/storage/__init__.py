@@ -25,11 +25,15 @@ class Storage(SingletonPlugin):
                           conditions={"method": ["PUT", "POST"]})
         route_map.connect("/api/storage/metadata/{bucket}/{label}", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})
-        route_map.connect('storage_auth_headers', "/api/storage/auth/{bucket}/{label:.*}", controller=c, action="get_headers",
-                          conditions={"method": ["POST", "GET"]})
+        route_map.connect('storage_auth_request',
+                "/api/storage/auth/request/{bucket}/{label:.*}",
+                controller=c,
+                action="auth_request"
+                )
         route_map.connect('storage_auth_form',
-                "/api/storage/auth_form/{bucket}/{label:.*}", controller=c,
-                action="auth_form",
-                          conditions={"method": ["POST", "GET"]})
+                "/api/storage/auth/form/{bucket}/{label:.*}",
+                controller=c,
+                action="auth_form"
+                )
         return route_map
 

@@ -28,7 +28,7 @@ class TestStorageController:
         url = url_for('storage')
         res = self.app.get(url)
         out = res.json
-        assert len(res.json) == 2
+        assert len(res.json) == 3
 
     def test_auth_form(self):
         url = url_for('storage_auth_form', bucket='xyz', label='abc')
@@ -44,4 +44,10 @@ class TestStorageController:
         res = self.app.get(url)
         exp = {u'name': u'success_action_redirect', u'value': u'abc'}
         assert exp == res.json['fields'][0], res.json
+
+    def test_auth_request(self):
+        url = url_for('storage_auth_request', bucket='xyz', label='abc')
+        res = self.app.get(url)
+        assert res.json['method'] == 'POST'
+        assert res.json['headers']['Authorization']
 
