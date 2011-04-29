@@ -26,7 +26,9 @@ def fix_stupid_pylons_encoding(data):
         data = m.groups()[0]
     return data
 
-storage_backend = config.get('ofs.impl')
+storage_backend = config['ofs.impl']
+BUCKET = config['ckanext.storage.bucket']
+key_prefix = config.get('ckanext.storage.key_prefix', 'file/')
 
 def get_ofs():
     kw = {}
@@ -258,23 +260,22 @@ class StorageController(BaseController):
             h.flash_error('Not authorized to upload files.')
             abort(401)
 
-        bucket = config.get('ckanext.storage.bucket_prefix')
-        label = request.params.get('filepath', str(uuid.uuid4())) #  + '/$filename'
+        label = key_prefix + request.params.get('filepath', str(uuid.uuid4())) #  + '/$filename'
         content_length_range = int(
                 config.get('ckanext.upload.max_content_length',
                     50000000))
         success_action_redirect = h.url_for('storage_upload_success', qualified=True,
-                bucket=bucket, label=label)
+                bucket=BUCKET, label=label)
         acl = 'public-read'
         c.data = self.ofs.conn.build_post_form_args(
-            bucket,
+            BUCKET,
             label,
             expires_in=600,
             max_content_length=content_length_range,
             success_action_redirect=success_action_redirect,
             acl=acl
             )
-        # fix up some broken stuff from boto
+        # HACK: fix up some broken stuff from boto
         # e.g. should not have content-length-range in list of fields!
         for idx,field in enumerate(c.data['fields']):
             if storage_backend == 'google':
@@ -287,7 +288,14 @@ class StorageController(BaseController):
 
     def success(self):
         h.flash_success('Upload successful')
-        c.file_url = request.params.get('fileurl', '')
-        c.upload_url = h.url_for('upload')
+        c.file_url = h.url_for('storage_file',
+                label=request.params.get('label', ''),
+                qualified=True
+                )
+        c.upload_url = h.url_for('storage_upload')
         return render('ckanext/storage/success.html')
+
+    def file(self, label):
+        url = self.ofs.get_url(BUCKET, label)
+        h.redirect_to(url)
 
