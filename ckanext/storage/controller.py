@@ -72,10 +72,11 @@ def get_ofs():
 def authorize(method, bucket, key, user, ofs):
     if not method in ['POST', 'GET', 'PUT', 'DELETE']:
         abort(400)
-    # do not allow overwriting
     if method != 'GET':
+        # do not allow overwriting
         if ofs.exists(bucket, key):
             abort(401)
+        # now check user stuff
         username = user.name if user else ''
         is_authorized = authz.Authorizer.is_authorized(username, UPLOAD_ACTION, model.System()) 
         if not is_authorized:
@@ -274,13 +275,23 @@ class StorageController(BaseController):
         success_action_redirect = h.url_for('storage_upload_success', qualified=True,
                 bucket=BUCKET, label=label)
         acl = 'public-read'
+        fields = [ {
+                'name': self.ofs.conn.provider.metadata_prefix + 'uploaded-by',
+                'value': c.userobj.id
+                }]
+        conditions = [ '{"%s": "%s"}' % (x['name'], x['value']) for x in
+                fields ]
+        for f in fields:
+            conditions.append
         c.data = self.ofs.conn.build_post_form_args(
             BUCKET,
             label,
             expires_in=600,
             max_content_length=content_length_range,
             success_action_redirect=success_action_redirect,
-            acl=acl
+            acl=acl,
+            fields=fields,
+            conditions=conditions
             )
         # HACK: fix up some broken stuff from boto
         # e.g. should not have content-length-range in list of fields!
