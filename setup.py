@@ -1,14 +1,17 @@
 from setuptools import setup, find_packages
 import sys, os
 
-version = '0.3'
+version = '0.4'
+try:
+    long_description = open('README.txt').read()
+except:
+    long_description = ''
 
 setup(
     name='ckanext-storage',
     version=version,
     description="CKAN API Extension for OFS Storage",
-    long_description="""\
-    """,
+    long_description=long_description,
     classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
     keywords='',
     author='Open Knowledge Foundation',
