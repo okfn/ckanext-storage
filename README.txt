@@ -24,7 +24,7 @@ And a new upload page at /upload.
 Metadata API
 ------------
 
-     /api/storage/metadata/<bucket>/<label>
+     /api/storage/metadata/<label>
 
   * GET will return the metadata
   * POST will add/update metadata
@@ -36,7 +36,8 @@ Auth API
 
 Get credentials for doing operations on storage (usually directly)::
 
-    /api/storage/auth/{request|form}/{bucket}/{label}
+    /api/storage/auth/{request|form}/{label}
 
-Details in docstrings in ckanext/storage/controller.py.
+Details in docstrings in ckanext/storage/controller.py or by visiting
+api/storage when running this extension.
 

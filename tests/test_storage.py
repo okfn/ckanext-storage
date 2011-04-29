@@ -31,22 +31,22 @@ class TestStorageAPIController:
         assert len(res.json) == 3
 
     def test_auth_form(self):
-        url = url_for('storage_api_auth_form', bucket='xyz', label='abc')
+        url = url_for('storage_api_auth_form', label='abc')
         res = self.app.get(url)
         assert res.json['fields'][-1]['value'] == 'abc'
 
-        url = url_for('storage_api_auth_form', bucket='xyz', label='abc/xxx')
+        url = url_for('storage_api_auth_form', label='abc/xxx')
         res = self.app.get(url)
         assert res.json['fields'][-1]['value'] == 'abc/xxx'
 
-        url = url_for('storage_api_auth_form', bucket='xyz', label='abc',
+        url = url_for('storage_api_auth_form', label='abc',
                 success_action_redirect='abc')
         res = self.app.get(url)
         exp = {u'name': u'success_action_redirect', u'value': u'abc'}
         assert exp == res.json['fields'][0], res.json
 
     def test_auth_request(self):
-        url = url_for('storage_api_auth_request', bucket='xyz', label='abc')
+        url = url_for('storage_api_auth_request', label='abc')
         res = self.app.get(url)
         assert res.json['method'] == 'POST'
         assert res.json['headers']['Authorization']

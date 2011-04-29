@@ -45,22 +45,20 @@ class StorageAPIController(BaseController):
     @jsonpify
     def index(self):
         info = {
-            'metadata/{bucket}/{label}': {
+            'metadata/{label}': {
                 'description': 'Get or set metadata for this item in storage',
-                'methods': ['GET', 'POST']
                 },
-            'auth/request/{bucket}/{label}': {
-                'description': 'Get authorization key valid for 15m',
-                'methods': ['GET', 'POST']
+            'auth/request/{label}': {
+                'description': self.auth_request.__doc__,
                 },
-            'auth/form/{bucket}/{label}': {
-                'description': 'Get authorization key valid for 15m',
-                'methods': ['GET', 'POST']
+            'auth/form/{label}': {
+                'description': self.auth_form.__doc__,
                 }
             }
         return info
 
-    def set_metadata(self, bucket, label):
+    def set_metadata(self, label):
+        bucket = BUCKET
         if not label.startswith("/"): label = "/" + label
 
         try:
@@ -102,7 +100,8 @@ class StorageAPIController(BaseController):
         return self.get_metadata(bucket, label)
     
     @jsonpify
-    def get_metadata(self, bucket, label):
+    def get_metadata(self, label):
+        bucket = BUCKET
         if not label.startswith("/"): label = "/" + label
         if not self.ofs.exists(bucket, label):
             abort(404)
@@ -112,15 +111,19 @@ class StorageAPIController(BaseController):
         return metadata
 
     def _authorize(self, method, bucket, key):
-        # TODO: implement
-        pass
+        if not method in ['POST', 'GET', 'PUT', 'DELETE']:
+            abort(400)
+        # do not allow overwriting
+        if method != 'GET':
+            if self.ofs.exists(bucket, key):
+                abort(401)
+        # TODO: now user auth
 
     @jsonpify
-    def auth_request(self, bucket, label):
+    def auth_request(self, label):
         '''Provide authentication information for a request so a client can
         interact with backend storage directly.
 
-        :param bucket: bucket name.
         :param label: label.
         :param kwargs: sent either via query string for GET or json-encoded
             dict for POST). Interpreted as http headers for request plus an
@@ -138,6 +141,7 @@ class StorageAPIController(BaseController):
         headers dictionary containing an Authorization field which is good for
         15m.
         '''
+        bucket = BUCKET
         if request.POST:
             try:
                 data = fix_stupid_pylons_encoding(request.body)
@@ -168,11 +172,10 @@ class StorageAPIController(BaseController):
             }
 
     @jsonpify
-    def auth_form(self, bucket, label):
+    def auth_form(self, label):
         '''Provide fields for a form upload to storage including
         authentication.
 
-        :param bucket: bucket name.
         :param label: label.
         :param kwargs: sent either via query string for GET or json-encoded
             dict for POST. Possible key values are as for arguments to this
@@ -181,6 +184,7 @@ class StorageAPIController(BaseController):
 
         :return: json-encoded dictionary with action parameter and fields list.
         '''
+        bucket = BUCKET
         if request.POST:
             try:
                 data = fix_stupid_pylons_encoding(request.body)
@@ -204,9 +208,6 @@ class StorageAPIController(BaseController):
             **headers
             )
 
-import base64
-import hashlib
-import hmac
 import uuid
 try:
     import json
