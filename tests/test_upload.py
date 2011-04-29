@@ -49,3 +49,6 @@ class TestStorageController:
         url = url_for('upload', filepath='xyz.txt')
         out = self.app.get(url, extra_environ=extra_environ)
         assert 'key" value="xyz.txt"' in out, out
+    
+    # TODO: test file upload itself
+

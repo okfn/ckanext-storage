@@ -19,6 +19,9 @@ class TestStorageAPIController:
         cls.app = paste.fixture.TestApp(wsgiapp)
         # setup test data including testsysadmin user
         CreateTestData.create()
+        model.Session.remove()
+        user = model.User.by_name('tester')
+        cls.extra_environ = {'Authorization': str(user.apikey)}
 
     @classmethod
     def teardown_class(self):
@@ -30,24 +33,29 @@ class TestStorageAPIController:
         out = res.json
         assert len(res.json) == 3
 
+    def test_authz(self):
+        url = url_for('storage_api_auth_form', label='abc')
+        res = self.app.get(url, status=[302,401])
+
     def test_auth_form(self):
         url = url_for('storage_api_auth_form', label='abc')
-        res = self.app.get(url)
-        assert res.json['fields'][-1]['value'] == 'abc'
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
+        assert res.json['fields'][-1]['value'] == 'abc', res
 
         url = url_for('storage_api_auth_form', label='abc/xxx')
-        res = self.app.get(url)
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         assert res.json['fields'][-1]['value'] == 'abc/xxx'
 
         url = url_for('storage_api_auth_form', label='abc',
                 success_action_redirect='abc')
-        res = self.app.get(url)
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         exp = {u'name': u'success_action_redirect', u'value': u'abc'}
         assert exp == res.json['fields'][0], res.json
 
     def test_auth_request(self):
+        user = model.User.by_name('tester')
         url = url_for('storage_api_auth_request', label='abc')
-        res = self.app.get(url)
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         assert res.json['method'] == 'POST'
         assert res.json['headers']['Authorization']
 

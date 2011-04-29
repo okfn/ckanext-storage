@@ -5,6 +5,11 @@ try:
 except ImportError:
     from StringIO import StringIO
 import urllib
+import uuid
+try:
+    import json
+except:
+    import simplejson as json
 from logging import getLogger
 
 from ofs import get_impl
@@ -12,10 +17,39 @@ from pylons import request, response
 from pylons.controllers.util import abort, redirect_to
 from pylons import config
 
-from ckan.lib.base import BaseController
+from ckan.lib.base import BaseController, c, request, render, config, h, abort
 from ckan.lib.jsonp import jsonpify
+import ckan.model as model
+import ckan.authz as authz
 
 log = getLogger(__name__)
+
+storage_backend = config['ofs.impl']
+BUCKET = config['ckanext.storage.bucket']
+key_prefix = config.get('ckanext.storage.key_prefix', 'file/')
+
+
+UPLOAD_ACTION = u'file-upload'
+
+def setup_permissions():
+    '''Setup upload permissions if they do not already exist.
+    '''
+    uploadrole = u'file-uploader'
+    existing = model.Session.query(model.RoleAction).filter_by(role=uploadrole).first()
+    if existing:
+        return
+    action = model.RoleAction(role=uploadrole, action=UPLOAD_ACTION,
+        context=u'')
+    model.Session.add(action)
+    visitor_roles = []
+    logged_in_roles = [uploadrole]
+    model.setup_user_roles(model.System(), visitor_roles, logged_in_roles, [])
+    model.Session.commit()
+    model.Session.remove()
+
+# HACK! - should be a hook to do this on plugin install/initialize
+# (this is inefficient as we will call it every time)
+setup_permissions()
 
 _eq_re = re.compile(r"^(.*)(=[0-9]*)$")
 def fix_stupid_pylons_encoding(data):
@@ -26,10 +60,6 @@ def fix_stupid_pylons_encoding(data):
         data = m.groups()[0]
     return data
 
-storage_backend = config['ofs.impl']
-BUCKET = config['ckanext.storage.bucket']
-key_prefix = config.get('ckanext.storage.key_prefix', 'file/')
-
 def get_ofs():
     kw = {}
     for k,v in config.items():
@@ -38,6 +68,20 @@ def get_ofs():
         kw[k[4:]] = v
     ofs = get_impl(storage_backend)(**kw)
     return ofs
+
+def authorize(method, bucket, key, user, ofs):
+    if not method in ['POST', 'GET', 'PUT', 'DELETE']:
+        abort(400)
+    # do not allow overwriting
+    if method != 'GET':
+        if ofs.exists(bucket, key):
+            abort(401)
+        username = user.name if user else ''
+        is_authorized = authz.Authorizer.is_authorized(username, UPLOAD_ACTION, model.System()) 
+        if not is_authorized:
+            h.flash_error('Not authorized to upload files.')
+            abort(401)
+
 
 class StorageAPIController(BaseController):
     ofs = get_ofs()
@@ -110,15 +154,6 @@ class StorageAPIController(BaseController):
         metadata["_location"] = url
         return metadata
 
-    def _authorize(self, method, bucket, key):
-        if not method in ['POST', 'GET', 'PUT', 'DELETE']:
-            abort(400)
-        # do not allow overwriting
-        if method != 'GET':
-            if self.ofs.exists(bucket, key):
-                abort(401)
-        # TODO: now user auth
-
     @jsonpify
     def auth_request(self, label):
         '''Provide authentication information for a request so a client can
@@ -160,7 +195,7 @@ class StorageAPIController(BaseController):
         else:
             method = 'POST'
 
-        self._authorize(method, bucket, label)
+        authorize(method, bucket, label, c.userobj, self.ofs)
             
         http_request = self.ofs.authenticate_request(method, bucket, label,
                 headers)
@@ -198,7 +233,8 @@ class StorageAPIController(BaseController):
         else:
             headers = dict(request.params)
 
-        self._authorize('POST', bucket, label)
+        method = 'POST'
+        authorize(method, bucket, label, c.userobj, self.ofs)
         if 'max_content_length' in headers:
             headers['max_content_length'] = int(headers['max_content_length'])
             
@@ -207,38 +243,6 @@ class StorageAPIController(BaseController):
             label,
             **headers
             )
-
-import uuid
-try:
-    import json
-except:
-    import simplejson as json
-
-from ckan.lib.base import BaseController, c, request, render, config, h, abort
-import ckan.model as model
-import ckan.authz as authz
-
-UPLOAD_ACTION = u'file-upload'
-
-def setup_permissions():
-    '''Setup upload permissions if they do not already exist.
-    '''
-    uploadrole = u'file-uploader'
-    existing = model.Session.query(model.RoleAction).filter_by(role=uploadrole).first()
-    if existing:
-        return
-    action = model.RoleAction(role=uploadrole, action=UPLOAD_ACTION,
-        context=u'')
-    model.Session.add(action)
-    visitor_roles = []
-    logged_in_roles = [uploadrole]
-    model.setup_user_roles(model.System(), visitor_roles, logged_in_roles, [])
-    model.Session.commit()
-    model.Session.remove()
-
-# HACK! - should be a hook to do this on plugin install/initialize
-# (this is inefficient as we will call it every time)
-setup_permissions()
 
 
 class StorageController(BaseController):
@@ -256,16 +260,14 @@ class StorageController(BaseController):
     ofs = get_ofs()
 
     def index(self):
-        is_authorized = authz.Authorizer.am_authorized(c, UPLOAD_ACTION, model.System()) 
-        if not is_authorized:
-            h.flash_error('Not authorized to upload files.')
-            abort(401)
-
         label = key_prefix + request.params.get('filepath', str(uuid.uuid4()))
         # would be nice to use filename of file
         # problem is 'we' don't know this at this point and cannot add it to
         # success_action_redirect and hence cannnot display to user afterwards
         # + '/${filename}'
+        method = 'POST'
+        authorize(method, BUCKET, label, c.userobj, self.ofs)
+
         content_length_range = int(
                 config.get('ckanext.upload.max_content_length',
                     50000000))
