@@ -261,7 +261,11 @@ class StorageController(BaseController):
             h.flash_error('Not authorized to upload files.')
             abort(401)
 
-        label = key_prefix + request.params.get('filepath', str(uuid.uuid4())) #  + '/$filename'
+        label = key_prefix + request.params.get('filepath', str(uuid.uuid4()))
+        # would be nice to use filename of file
+        # problem is 'we' don't know this at this point and cannot add it to
+        # success_action_redirect and hence cannnot display to user afterwards
+        # + '/${filename}'
         content_length_range = int(
                 config.get('ckanext.upload.max_content_length',
                     50000000))
