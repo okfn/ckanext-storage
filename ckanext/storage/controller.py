@@ -247,16 +247,7 @@ class StorageAPIController(BaseController):
 
 
 class StorageController(BaseController):
-    '''Upload to storage service (at the moment Google Developer storage.
-
-    Required config:
-
-    * ofs.gs_access_key_id
-    * ofs.gs_secret_access_key
-    * ofs.gs_bucket [optional]: the bucket to use for uploading (defaults to
-      ckan)
-    * ckanext.upload.max_content_length [optional]: maximum content size for
-      uploads (defaults to 50Mb)
+    '''Upload to storage backend.
     '''
     ofs = get_ofs()
 
@@ -270,7 +261,7 @@ class StorageController(BaseController):
         authorize(method, BUCKET, label, c.userobj, self.ofs)
 
         content_length_range = int(
-                config.get('ckanext.upload.max_content_length',
+                config.get('ckanext.storage.max_content_length',
                     50000000))
         success_action_redirect = h.url_for('storage_upload_success', qualified=True,
                 bucket=BUCKET, label=label)
