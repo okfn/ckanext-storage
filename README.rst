@@ -7,8 +7,10 @@ This extension adds:
   * Some new methods to the CKAN API for dealing with storage
   * A /storage/upload page to web interface for doing file uploads
   
-It uses OFS to talk to the backing storage so can support anything that OFS
+It uses `OFS`_ to talk to the backing storage so can support anything that OFS
 supports including local filesytem, S3, Google Storage etc.
+
+.. _OFS: http://pypi.python.org/pypi/ofs/
 
 In your config you need something like::
 
@@ -29,13 +31,33 @@ There will be a new upload page at /storage/upload.
 Metadata API
 ============
 
+The API is located at::
+
      /api/storage/metadata/{label}
+
+It supports the following methods:
 
   * GET will return the metadata
   * POST will add/update metadata
   * PUT will replace metadata
 
-Metadata is a json dict like:
+Metadata is a json dict of key values which for POST and PUT should be send in body of request.
+
+A standard response looks like::
+
+    {
+      "_bucket": "ckannet-storage",
+      _content_length: 1074
+      _format: "text/plain"
+      _label: "/file/8630a664-0ae4-485f-99c2-126dae95653a"
+      _last_modified: "Fri, 29 Apr 2011 19:27:31 GMT"
+      _location: "some-location"
+      _owner: null
+      uploaded-by: "bff737ef-b84c-4519-914c-b4285144d8e6"
+    }
+
+Note that values with '_' are standard OFS metadata and are mostly read-only -- _format i.e. content-type can be set).
+
 
 Auth API
 ========
@@ -43,8 +65,12 @@ Auth API
 Get credentials for doing operations on storage directly.
 
 
-/api/storage/auth/request/{label}
----------------------------------
+Request Authentication
+----------------------
+
+The API is at::
+
+    /api/storage/auth/request/{label}
 
 Provide authentication information for a request so a client can
 interact with backend storage directly::
@@ -66,8 +92,12 @@ interact with backend storage directly::
     headers dictionary containing an Authorization field which is good for
     15m.
 
-/api/storage/auth/form/{label}
-------------------------------
+Form Authentication
+-------------------
+
+The API is located at::
+
+    /api/storage/auth/form/{label}
 
 Provide fields for a form upload to storage including authentication::
 
