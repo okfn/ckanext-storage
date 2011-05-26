@@ -10,17 +10,46 @@ This extension adds:
 It uses `OFS`_ to talk to the backing storage so can support anything that OFS
 supports including local filesytem, S3, Google Storage etc.
 
-.. _OFS: http://pypi.python.org/pypi/ofs/
+.. _OFS: http://packages.python.org/ofs/
+
+Installation
+============
+
+Install the extension::
+
+    # using pip (could use easy_install)
+    pip install ckanext-storage
+    # could install from source
+    # hg clone https://bitbucket.org/okfn/ckanext-storage
+    # cd ckanext-storage
+    # pip install -e .
+
+Note that for use of S3-like backends (S3, Google Storage etc) you will need boto (this is installed by default at the moment). For local filesystem backend you need to install pairtree (`pip install pairtree`).
 
 In your config you need something like::
 
    ckan.plugins = storage
-   # this is for google storage
+
+   ## OFS configuration
+   ## This is for google storage. Example for another backend is below
+   ## See OFS docs for full details
    ofs.impl = google
    ofs.gs_access_key_id = GOOGCABCDASDASD
    ofs.gs_secret_access_key = 134zsdfjkw4234addad
-   ckanext.storage.bucket = the bucket to use for uploading
-   ckanext.storage.max_content_length = [optional] maximum content size for uploads (defaults to 50Mb)
+   ## bucket to use in storage You *must* set this
+   ckanext.storage.bucket = ....
+
+   ## optional
+   ## maximum content size for uploads in bytes, defaults to 1Gb
+   # ckanext.storage.max_content_length = 1000000000
+   ## prefix for all keys. Useful because we may use a single bucket and want to
+   ## partition file uploads. Defaults to file/
+   # ckanext.storage.key_prefix = file/
+
+For local file storage you would replace ofs arguments with::
+
+   ofs.impl = pairtree
+   ofs.storage_dir = /my/path/to/storage/root/directory
 
 
 Upload Web Interface

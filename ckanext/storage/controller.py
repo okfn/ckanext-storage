@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from cgi import FieldStorage
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -16,6 +17,7 @@ from ofs import get_impl
 from pylons import request, response
 from pylons.controllers.util import abort, redirect_to
 from pylons import config
+from paste.fileapp import FileApp
 
 from ckan.lib.base import BaseController, c, request, render, config, h, abort
 from ckan.lib.jsonp import jsonpify
@@ -251,15 +253,14 @@ class StorageController(BaseController):
     '''
     ofs = get_ofs()
 
-    def index(self):
-        label = key_prefix + request.params.get('filepath', str(uuid.uuid4()))
+    def _get_form_for_remote(self):
         # would be nice to use filename of file
         # problem is 'we' don't know this at this point and cannot add it to
         # success_action_redirect and hence cannnot display to user afterwards
         # + '/${filename}'
+        label = key_prefix + request.params.get('filepath', str(uuid.uuid4()))
         method = 'POST'
         authorize(method, BUCKET, label, c.userobj, self.ofs)
-
         content_length_range = int(
                 config.get('ckanext.storage.max_content_length',
                     50000000))
@@ -277,7 +278,7 @@ class StorageController(BaseController):
         c.data = self.ofs.conn.build_post_form_args(
             BUCKET,
             label,
-            expires_in=600,
+            expires_in=3600,
             max_content_length=content_length_range,
             success_action_redirect=success_action_redirect,
             acl=acl,
@@ -293,7 +294,42 @@ class StorageController(BaseController):
             if field['name'] == 'content-length-range':
                 del c.data['fields'][idx]
         c.data_json = json.dumps(c.data, indent=2)
+
+    def upload(self):
+        if storage_backend in ['google', 's3']:
+            self._get_form_for_remote()
+        else:
+            label = key_prefix + request.params.get('filepath', str(uuid.uuid4()))
+            c.data = {
+                'action': h.url_for('storage_upload_handle'),
+                'fields': [
+                    {
+                        'name': 'key',
+                        'value': label
+                    }
+                ]
+            }
         return render('ckanext/storage/index.html')
+
+    def upload_handle(self):
+        bucket_id = BUCKET
+        params = request.params
+        params = dict(params.items())
+        stream = params.get('file')
+        label = params.get('key')
+        authorize('POST', BUCKET, label, c.userobj, self.ofs)
+        if not label:
+            abort(400, "No label")
+        if not isinstance(stream, FieldStorage):
+            abort(400, "No file stream.")
+        del params['file']
+        params['filename-original'] = stream.filename
+        params['_owner'] = c.userobj.id
+        params['uploaded-by'] = c.userobj.id
+        self.ofs.put_stream(bucket_id, label, stream.file, params)
+        success_action_redirect = h.url_for('storage_upload_success', qualified=True,
+                bucket=BUCKET, label=label)
+        h.redirect_to(success_action_redirect)
 
     def success(self):
         h.flash_success('Upload successful')
@@ -305,6 +341,15 @@ class StorageController(BaseController):
         return render('ckanext/storage/success.html')
 
     def file(self, label):
-        url = self.ofs.get_url(BUCKET, label)
-        h.redirect_to(url)
+        file_url = self.ofs.get_url(BUCKET, label)
+        if file_url.startswith("file://"):
+            metadata = self.ofs.get_metadata(BUCKET, label)
+            filepath = file_url[len("file://"):]
+            headers = {'Content-Disposition':'attachment; filename="%s"' %
+                    label,
+                       'Content-Type':metadata.get('_format', 'text/plain')}
+            fapp = FileApp(filepath, headers=None, **headers)
+            return fapp(request.environ, self.start_response)
+        else:
+            h.redirect_to(file_url)
 
