@@ -341,6 +341,18 @@ class StorageController(BaseController):
         return render('ckanext/storage/success.html')
 
     def file(self, label):
+        exists = self.ofs.exists(BUCKET, label)
+        if not exists:
+            # handle erroneous trailing slash by redirecting to url w/o slash
+            if label.endswith('/'):
+                label = label[:-1]
+                file_url = h.url_for(
+                    'storage_file',
+                    label=label
+                    )
+                h.redirect_to(file_url)
+            else:
+                abort(404)
         file_url = self.ofs.get_url(BUCKET, label)
         if file_url.startswith("file://"):
             metadata = self.ofs.get_metadata(BUCKET, label)
