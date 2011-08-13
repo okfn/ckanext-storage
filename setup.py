@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import sys, os
 
-version = '0.5a'
+version = '0.5'
 try:
     long_description = open('README.txt').read()
 except:
@@ -26,7 +26,7 @@ setup(
         # google storage support only appeared in 2.0
         # note that lucid packages 1.9
         "boto>=2.0b1",
-        "ofs>=0.4",
+        "ofs>=0.4.1",
     ],
     entry_points=\
     """
