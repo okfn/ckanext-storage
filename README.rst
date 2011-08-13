@@ -131,11 +131,6 @@ The API is located at::
 Provide fields for a form upload to storage including authentication::
 
     :param label: label.
-    :param kwargs: sent either via query string for GET or json-encoded
-        dict for POST. Possible key values are as for arguments to this
-        underlying method:
-        http://boto.cloudhackers.com/ref/s3.html?highlight=s3#boto.s3.connection.S3Connection.build_post_form_args
-
     :return: json-encoded dictionary with action parameter and fields list.
 
 

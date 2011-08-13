@@ -77,7 +77,7 @@ def authorize(method, bucket, key, user, ofs):
     if method != 'GET':
         # do not allow overwriting
         if ofs.exists(bucket, key):
-            abort(401)
+            abort(409)
         # now check user stuff
         username = user.name if user else ''
         is_authorized = authz.Authorizer.is_authorized(username, UPLOAD_ACTION, model.System()) 
@@ -209,17 +209,46 @@ class StorageAPIController(BaseController):
             'headers': http_request.headers
             }
 
+    def _get_form_data(self, label):
+        method = 'POST'
+        content_length_range = int(
+                config.get('ckanext.storage.max_content_length',
+                    50000000))
+        acl = 'public-read'
+        fields = [ {
+                'name': self.ofs.conn.provider.metadata_prefix + 'uploaded-by',
+                'value': c.userobj.id
+                }]
+        conditions = [ '{"%s": "%s"}' % (x['name'], x['value']) for x in
+                fields ]
+        success_action_redirect = h.url_for('storage_api_get_metadata', qualified=True,
+                label=label)
+        data = self.ofs.conn.build_post_form_args(
+            BUCKET,
+            label,
+            expires_in=72000,
+            max_content_length=content_length_range,
+            success_action_redirect=success_action_redirect,
+            acl=acl,
+            fields=fields,
+            conditions=conditions
+            )
+        # HACK: fix up some broken stuff from boto
+        # e.g. should not have content-length-range in list of fields!
+        for idx,field in enumerate(data['fields']):
+            if storage_backend == 'google':
+                if field['name'] == 'AWSAccessKeyId':
+                    field['name'] = 'GoogleAccessId'
+            if field['name'] == 'content-length-range':
+                del data['fields'][idx]
+        return data
+
     @jsonpify
     def auth_form(self, label):
         '''Provide fields for a form upload to storage including
         authentication.
 
         :param label: label.
-        :param kwargs: sent either via query string for GET or json-encoded
-            dict for POST. Possible key values are as for arguments to this
-            underlying method:
-            http://boto.cloudhackers.com/ref/s3.html?highlight=s3#boto.s3.connection.S3Connection.build_post_form_args
-
         :return: json-encoded dictionary with action parameter and fields list.
         '''
         bucket = BUCKET
@@ -238,14 +267,8 @@ class StorageAPIController(BaseController):
 
         method = 'POST'
         authorize(method, bucket, label, c.userobj, self.ofs)
-        if 'max_content_length' in headers:
-            headers['max_content_length'] = int(headers['max_content_length'])
-            
-        return self.ofs.conn.build_post_form_args(
-            bucket,
-            label,
-            **headers
-            )
+        data = self._get_form_data(label)
+        return data
 
 
 class StorageController(BaseController):
@@ -273,8 +296,6 @@ class StorageController(BaseController):
                 }]
         conditions = [ '{"%s": "%s"}' % (x['name'], x['value']) for x in
                 fields ]
-        for f in fields:
-            conditions.append
         c.data = self.ofs.conn.build_post_form_args(
             BUCKET,
             label,
