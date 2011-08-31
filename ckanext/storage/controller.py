@@ -26,7 +26,6 @@ import ckan.authz as authz
 
 log = getLogger(__name__)
 
-storage_backend = config['ofs.impl']
 BUCKET = config['ckanext.storage.bucket']
 key_prefix = config.get('ckanext.storage.key_prefix', 'file/')
 
@@ -63,6 +62,7 @@ def fix_stupid_pylons_encoding(data):
     return data
 
 def get_ofs():
+    storage_backend = config['ofs.impl']
     kw = {}
     for k,v in config.items():
         if not k.startswith('ofs.') or k == 'ofs.impl':
@@ -87,7 +87,9 @@ def authorize(method, bucket, key, user, ofs):
 
 
 class StorageAPIController(BaseController):
-    ofs = get_ofs()
+    @property
+    def ofs(self):
+        return get_ofs()
     
     @jsonpify
     def index(self):
@@ -209,7 +211,7 @@ class StorageAPIController(BaseController):
             'headers': http_request.headers
             }
 
-    def _get_form_data(self, label):
+    def _get_remote_form_data(self, label):
         method = 'POST'
         content_length_range = int(
                 config.get('ckanext.storage.max_content_length',
@@ -235,6 +237,7 @@ class StorageAPIController(BaseController):
             )
         # HACK: fix up some broken stuff from boto
         # e.g. should not have content-length-range in list of fields!
+        storage_backend = config['ofs.impl']
         for idx,field in enumerate(data['fields']):
             if storage_backend == 'google':
                 if field['name'] == 'AWSAccessKeyId':
@@ -242,6 +245,22 @@ class StorageAPIController(BaseController):
             if field['name'] == 'content-length-range':
                 del data['fields'][idx]
         return data
+
+    def _get_form_data(self, label):
+        storage_backend = config['ofs.impl']
+        if storage_backend in ['google', 's3']:
+            return self._get_remote_form_data(label)
+        else:
+            data = {
+                'action': h.url_for('storage_upload_handle'),
+                'fields': [
+                    {
+                        'name': 'key',
+                        'value': label
+                    }
+                ]
+            }
+            return data
 
     @jsonpify
     def auth_form(self, label):
@@ -274,7 +293,9 @@ class StorageAPIController(BaseController):
 class StorageController(BaseController):
     '''Upload to storage backend.
     '''
-    ofs = get_ofs()
+    @property
+    def ofs(self):
+        return get_ofs()
 
     def _get_form_for_remote(self):
         # would be nice to use filename of file
@@ -308,6 +329,7 @@ class StorageController(BaseController):
             )
         # HACK: fix up some broken stuff from boto
         # e.g. should not have content-length-range in list of fields!
+        storage_backend = config['ofs.impl']
         for idx,field in enumerate(c.data['fields']):
             if storage_backend == 'google':
                 if field['name'] == 'AWSAccessKeyId':
@@ -317,6 +339,7 @@ class StorageController(BaseController):
         c.data_json = json.dumps(c.data, indent=2)
 
     def upload(self):
+        storage_backend = config['ofs.impl']
         if storage_backend in ['google', 's3']:
             self._get_form_for_remote()
         else:

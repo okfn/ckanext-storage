@@ -6,8 +6,28 @@ import ckan.model as model
 from ckan.tests import conf_dir, url_for, CreateTestData
 from ckanext.admin.controller import get_sysadmins
 
-
 class TestStorageAPIController:
+    @classmethod
+    def setup_class(cls):
+        config = appconfig('config:test.ini', relative_to=conf_dir)
+        config.local_conf['ckan.plugins'] = 'storage'
+        config.local_conf['ofs.impl'] = 'pairtree'
+        config.local_conf['ofs.storage_dir'] = '/tmp/ckan-test-ckanext-storage'
+        wsgiapp = make_app(config.global_conf, **config.local_conf)
+        cls.app = paste.fixture.TestApp(wsgiapp)
+
+    def test_index(self):
+        url = url_for('storage_api')
+        res = self.app.get(url)
+        out = res.json
+        assert len(res.json) == 3
+
+    def test_authz(self):
+        url = url_for('storage_api_auth_form', label='abc')
+        res = self.app.get(url, status=[302,401])
+
+
+class TestStorageAPIControllerGoogle:
     @classmethod
     def setup_class(cls):
         config = appconfig('config:test.ini', relative_to=conf_dir)
@@ -27,18 +47,8 @@ class TestStorageAPIController:
         cls.extra_environ = {'Authorization': str(user.apikey)}
 
     @classmethod
-    def teardown_class(self):
+    def teardown_class(cls):
         CreateTestData.delete()
-
-    def test_index(self):
-        url = url_for('storage_api')
-        res = self.app.get(url)
-        out = res.json
-        assert len(res.json) == 3
-
-    def test_authz(self):
-        url = url_for('storage_api_auth_form', label='abc')
-        res = self.app.get(url, status=[302,401])
 
     def test_auth_form(self):
         url = url_for('storage_api_auth_form', label='abc')
@@ -52,13 +62,40 @@ class TestStorageAPIController:
         url = url_for('storage_api_auth_form', label='abc',
                 success_action_redirect='abc')
         res = self.app.get(url, extra_environ=self.extra_environ, status=200)
-        exp = {u'name': u'success_action_redirect', u'value': u'abc'}
-        assert exp == res.json['fields'][0], res.json
+        fields = dict([ (x['name'], x['value']) for x in res.json['fields'] ])
+        assert fields['success_action_redirect'] == u'http://localhost/api/storage/metadata/abc', fields
 
     def test_auth_request(self):
-        user = model.User.by_name('tester')
         url = url_for('storage_api_auth_request', label='abc')
         res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         assert res.json['method'] == 'POST'
         assert res.json['headers']['Authorization']
+
+
+class TestStorageAPIControllerLocal:
+    @classmethod
+    def setup_class(cls):
+        config = appconfig('config:test.ini', relative_to=conf_dir)
+        config.local_conf['ckan.plugins'] = 'storage'
+        config.local_conf['ofs.impl'] = 'pairtree'
+        config.local_conf['ofs.storage_dir'] = '/tmp/ckan-test-ckanext-storage'
+        wsgiapp = make_app(config.global_conf, **config.local_conf)
+        cls.app = paste.fixture.TestApp(wsgiapp)
+        CreateTestData.create()
+        model.Session.remove()
+        user = model.User.by_name('tester')
+        cls.extra_environ = {'Authorization': str(user.apikey)}
+
+    @classmethod
+    def teardown_class(cls):
+        CreateTestData.delete()
+
+    def test_auth_form(self):
+        url = url_for('storage_api_auth_form', label='abc')
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
+        assert res.json['fields'][-1]['value'] == 'abc', res
+
+        url = url_for('storage_api_auth_form', label='abc/xxx')
+        res = self.app.get(url, extra_environ=self.extra_environ, status=200)
+        assert res.json['fields'][-1]['value'] == 'abc/xxx'
 
