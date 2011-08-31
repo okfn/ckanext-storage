@@ -15,6 +15,9 @@ class TestStorageAPIController:
         config.local_conf['ofs.impl'] = 'google'
         config.local_conf['ofs.gs_access_key_id'] = 'GOOGCABCDASDASD'
         config.local_conf['ofs.gs_secret_access_key'] = '134zsdfjkw4234addad'
+        # need to ensure not configured for local as breaks google setup
+        if 'ofs.storage_dir' in config.local_conf:
+            del config.local_conf['ofs.storage_dir']
         wsgiapp = make_app(config.global_conf, **config.local_conf)
         cls.app = paste.fixture.TestApp(wsgiapp)
         # setup test data including testsysadmin user
