@@ -252,7 +252,7 @@ class StorageAPIController(BaseController):
             return self._get_remote_form_data(label)
         else:
             data = {
-                'action': h.url_for('storage_upload_handle'),
+                'action': h.url_for('storage_upload_handle', qualified=True),
                 'fields': [
                     {
                         'name': 'key',
