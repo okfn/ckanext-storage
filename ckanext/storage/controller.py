@@ -151,11 +151,19 @@ class StorageAPIController(BaseController):
     @jsonpify
     def get_metadata(self, label):
         bucket = BUCKET
-        if not label.startswith("/"): label = "/" + label
+        storage_backend = config['ofs.impl']
+        if storage_backend in ['google', 's3']:
+            if not label.startswith("/"):
+                label = "/" + label
+            url = "https://%s/%s%s" % (self.ofs.conn.server_name(), bucket, label)
+        else:
+            url = h.url_for('storage_file',
+                    label=label,
+                    qualified=True
+                    )
         if not self.ofs.exists(bucket, label):
             abort(404)
         metadata = self.ofs.get_metadata(bucket, label)
-        url = "https://%s/%s%s" % (self.ofs.conn.server_name(), bucket, label)
         metadata["_location"] = url
         return metadata
 

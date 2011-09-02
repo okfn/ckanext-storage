@@ -13,7 +13,7 @@ class Storage(SingletonPlugin):
     def after_map(self, route_map):
         c = "ckanext.storage.controller:StorageAPIController"
         route_map.connect('storage_api', "/api/storage", controller=c, action="index")
-        route_map.connect("/api/storage/metadata/{label:.*}", controller=c, action="set_metadata",
+        route_map.connect('storage_api_set_metadata', "/api/storage/metadata/{label:.*}", controller=c, action="set_metadata",
                           conditions={"method": ["PUT", "POST"]})
         route_map.connect('storage_api_get_metadata', "/api/storage/metadata/{label:.*}", controller=c, action="get_metadata",
                           conditions={"method": ["GET"]})

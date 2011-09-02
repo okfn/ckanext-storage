@@ -100,3 +100,18 @@ class TestStorageAPIControllerLocal:
         res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         assert res.json['fields'][-1]['value'] == 'abc/xxx'
 
+    def test_metadata(self):
+        url = url_for('storage_api_get_metadata', label='abc')
+        res = self.app.get(url, status=404)
+
+        # TODO: test get metadata on real setup ...
+        label = 'abc'
+        url = url_for('storage_api_set_metadata', 
+            extra_environ=self.extra_environ,
+            label=label,
+            data=dict(
+                label=label
+                )
+            )
+        # res = self.app.get(url, status=404)
+
