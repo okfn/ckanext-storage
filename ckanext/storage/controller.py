@@ -381,12 +381,16 @@ class StorageController(BaseController):
         self.ofs.put_stream(bucket_id, label, stream.file, params)
         success_action_redirect = h.url_for('storage_upload_success', qualified=True,
                 bucket=BUCKET, label=label)
-        h.redirect_to(success_action_redirect)
+        # Cannot redirect here as it breaks js file uploads (get infinite loop
+        # in FF and crash in Chrome)
+        # h.redirect_to(success_action_redirect)
+        return self.success(label)
 
-    def success(self):
+    def success(self, label=None):
+        label=request.params.get('label', label)
         h.flash_success('Upload successful')
         c.file_url = h.url_for('storage_file',
-                label=request.params.get('label', ''),
+                label=label, 
                 qualified=True
                 )
         c.upload_url = h.url_for('storage_upload')
@@ -409,9 +413,9 @@ class StorageController(BaseController):
         if file_url.startswith("file://"):
             metadata = self.ofs.get_metadata(BUCKET, label)
             filepath = file_url[len("file://"):]
-            headers = {'Content-Disposition':'attachment; filename="%s"' %
-                    label,
-                       'Content-Type':metadata.get('_format', 'text/plain')}
+            headers = {
+                # 'Content-Disposition':'attachment; filename="%s"' % label,
+                'Content-Type':metadata.get('_format', 'text/plain')}
             fapp = FileApp(filepath, headers=None, **headers)
             return fapp(request.environ, self.start_response)
         else:
