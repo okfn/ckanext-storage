@@ -188,6 +188,7 @@ class StorageAPIController(BaseController):
         :return: is a json hash containing various attributes including a
         headers dictionary containing an Authorization field which is good for
         15m.
+
         '''
         bucket = BUCKET
         if request.POST:
@@ -231,7 +232,11 @@ class StorageAPIController(BaseController):
                 }]
         conditions = [ '{"%s": "%s"}' % (x['name'], x['value']) for x in
                 fields ]
-        success_action_redirect = h.url_for('storage_api_get_metadata', qualified=True,
+        # In FF redirect to this breaks js upload as FF attempts to open file
+        # (presumably because mimetype = javascript) and this stops js
+        # success_action_redirect = h.url_for('storage_api_get_metadata', qualified=True,
+        #        label=label)
+        success_action_redirect = h.url_for('storage_upload_success_empty', qualified=True,
                 label=label)
         data = self.ofs.conn.build_post_form_args(
             BUCKET,
@@ -395,6 +400,10 @@ class StorageController(BaseController):
                 )
         c.upload_url = h.url_for('storage_upload')
         return render('ckanext/storage/success.html')
+
+    def success_empty(self, label=None):
+        # very simple method that just returns 200 OK
+        return ''
 
     def file(self, label):
         exists = self.ofs.exists(BUCKET, label)

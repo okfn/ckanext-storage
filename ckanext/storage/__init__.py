@@ -37,6 +37,9 @@ class Storage(SingletonPlugin):
         route_map.connect('storage_upload_success', '/storage/upload/success',
             controller='ckanext.storage.controller:StorageController',
             action='success')
+        route_map.connect('storage_upload_success_empty', '/storage/upload/success_empty',
+            controller='ckanext.storage.controller:StorageController',
+            action='success_empty')
         route_map.connect('storage_file', '/storage/f/{label:.*}',
             controller='ckanext.storage.controller:StorageController',
             action='file')
