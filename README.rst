@@ -51,6 +51,12 @@ For local file storage you would replace ofs arguments with::
    ofs.impl = pairtree
    ofs.storage_dir = /my/path/to/storage/root/directory
 
+If when uploading and using the local file storage you receive a 
+pairtree.storage_exceptions.NotAPairtreeStoreException exception then 
+you need to let pairtree that your chosen folder (ofs.storage_dir) is 
+a store.  You can do this by creating a file in the ofs.storage_dir called 
+pairtree_version0_1. 
+
 
 Upload Web Interface
 ====================
