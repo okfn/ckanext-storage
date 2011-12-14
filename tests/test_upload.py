@@ -11,7 +11,7 @@ class TestStorageController:
     @classmethod
     def setup_class(cls):
         config = appconfig('config:test.ini', relative_to=conf_dir)
-        config.local_conf['ckan.plugins'] = 'upload'
+        config.local_conf['ckan.plugins'] = 'storage'
         wsgiapp = make_app(config.global_conf, **config.local_conf)
         cls.app = paste.fixture.TestApp(wsgiapp)
         CreateTestData.create()
@@ -22,7 +22,7 @@ class TestStorageController:
         model.repo.rebuild_db()
 
     def test_02_authorization(self):
-        from ckanext.upload.controller import UPLOAD_ACTION
+        from ckanext.storage.controller import UPLOAD_ACTION
         import ckan.model as model
         import ckan.authz as authz
         is_authorized = authz.Authorizer.is_authorized('tester', UPLOAD_ACTION, model.System()) 

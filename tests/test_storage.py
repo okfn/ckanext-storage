@@ -4,7 +4,7 @@ import paste.fixture
 from ckan.config.middleware import make_app
 import ckan.model as model
 from ckan.tests import conf_dir, url_for, CreateTestData
-from ckanext.admin.controller import get_sysadmins
+from ckan.controllers.admin import get_sysadmins
 
 class TestStorageAPIController:
     @classmethod
@@ -27,7 +27,7 @@ class TestStorageAPIController:
         res = self.app.get(url, status=[302,401])
 
 
-class TestStorageAPIControllerGoogle:
+class xTestStorageAPIControllerGoogle:
     @classmethod
     def setup_class(cls):
         config = appconfig('config:test.ini', relative_to=conf_dir)
@@ -63,7 +63,7 @@ class TestStorageAPIControllerGoogle:
                 success_action_redirect='abc')
         res = self.app.get(url, extra_environ=self.extra_environ, status=200)
         fields = dict([ (x['name'], x['value']) for x in res.json['fields'] ])
-        assert fields['success_action_redirect'] == u'http://localhost/api/storage/metadata/abc', fields
+        assert fields['success_action_redirect'] == u'http://localhost/storage/upload/success_empty?label=abc', fields
 
     def test_auth_request(self):
         url = url_for('storage_api_auth_request', label='abc')
