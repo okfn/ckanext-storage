@@ -29,7 +29,8 @@ class TestStorageController:
         assert is_authorized
 
     def test_03_authorization_wui(self):
-        url = url_for('upload')
+        url = '/' + url_for('upload')
+#        from nose.tools import set_trace; set_trace()
         res = self.app.get(url, status=[302,401])
         if res.status == 302:
             res = res.follow()

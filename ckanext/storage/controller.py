@@ -1,17 +1,18 @@
 import re
 from datetime import datetime
 from cgi import FieldStorage
+import urllib
+import uuid
+from logging import getLogger
+
 try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
-import urllib
-import uuid
 try:
     import json
 except:
     import simplejson as json
-from logging import getLogger
 
 from ofs import get_impl
 from pylons import request, response
@@ -29,7 +30,6 @@ log = getLogger(__name__)
 BUCKET = config['ckanext.storage.bucket']
 key_prefix = config.get('ckanext.storage.key_prefix', 'file/')
 
-
 UPLOAD_ACTION = u'file-upload'
 
 def setup_permissions():
@@ -39,11 +39,12 @@ def setup_permissions():
     existing = model.Session.query(model.RoleAction).filter_by(role=uploadrole).first()
     if existing:
         return
-    action = model.RoleAction(role=uploadrole, action=UPLOAD_ACTION,
-        context=u'')
+    action = model.RoleAction(role=uploadrole, action=UPLOAD_ACTION, context=u'')
     model.Session.add(action)
+    
     visitor_roles = []
     logged_in_roles = [uploadrole]
+    
     model.setup_user_roles(model.System(), visitor_roles, logged_in_roles, [])
     model.Session.commit()
     model.Session.remove()

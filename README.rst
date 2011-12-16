@@ -20,7 +20,7 @@ Install the extension::
     # using pip (could use easy_install)
     pip install ckanext-storage
     # could install from source
-    # hg clone https://bitbucket.org/okfn/ckanext-storage
+    # git clone git://github.com/okfn/ckanext-storage.git
     # cd ckanext-storage
     # pip install -e .
 
