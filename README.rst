@@ -2,7 +2,9 @@
 CKAN Storage Extension
 ======================
 
-This extension adds:
+**Advance Deprecation Notice: as of CKAN v1.6 (expected Feb 2012), this extension and its storage capabilities will have been merged into CKAN core.**
+
+This extension adds 'blob' storage capabilities to CKAN along with:
 
   * Some new methods to the CKAN API for dealing with storage
   * A /storage/upload page to web interface for doing file uploads
@@ -61,7 +63,9 @@ pairtree_version0_1.
 Upload Web Interface
 ====================
 
-There will be a new upload page at /storage/upload. 
+Direct upload of a file will now be available as part of the dataset resource creation process (as of CKAN v1.5).
+
+There will also be a new upload page at /storage/upload.
 
 Metadata API
 ============
@@ -147,3 +151,4 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+ 
